@@ -1,0 +1,299 @@
+= Unit testing in Python with pytest
+:toc: left
+:source-highlighter: highlightjs
+
+== Slides
+* https://speakerdeck.com/pycon2016/michael-tom-wing-christie-wilson-introduction-to-unit-testing-in-python-with-pytest[Unit testing in Python with pytest]
+
+== What is a test?
+* Specifies how your software is intended to work
+* Can be run against your software to verify it
+
+== Why test?
+* Increase:
+** Trust
+** Confidence
+* You will never be 100% confident!
+* But you can be 60% confident.
+
+== Types of tests
+* Specifying and running test for everything is:
+** Hard to maintain
+** Slow
+** Hard to write
+
+* Unit tests
+** Test 'isolated units'
+*** e.g. a method or function
+** Super high coverage
+** Most of the tests
+* Integration tests
+** Combine units and test them together
+** Fill in the cracks between the tests
+* System tests
+** Test with everything plugged together and configured as expected
+** From the end user's perspective
+* Acceptance tests
+** Test the customer's use cases
+
+== Coverage
+* Statement coverage == "Was this line executed?"
+* Decision coverage == "Was this code path executed?"
+* Condition coverage == "Was every part of the decision executed?"
+
+== Unit Tests
+* *People often love or hate unit tests.*
+* But they are neutral, like brushing your teeth
+
+== What are unit tests good for?
+* Finding bugs DURING development
+* A design tool
+* Writing maintainable code
+* Documenting a developer's intentions
+* Running quickly
+
+== What are unit tests not good for?
+* Finding bugs
+* Indicating that your application is functioning correctly
+* Testing glue code
+* Testing every possible permutation
+
+WARNING: Unit tests ARE NOT for preventing bugs
+
+IMPORTANT: Unit tests ARE for writing clean maintainable code with confidence
+
+== Generating tests cases
+* Think about possible input
+* Categorize the input into special cases
+* One test per special case
+
+== Trusting sources of input
+* What if the wrong type of data is passed in?
+* What if the sequence is extremely large?
+* Depends:
+** Where the input is coming from
+** Where you implement validation
+
+== Python Unit Testing
+
+=== *unittest* module
+* Comes with the standard library
+* Typically will do basically everything you need
+* `self.assertEqual(result, "cats")`
+
+=== *pytest* module
+* `$ pip install pytest`
+* Provides everything that *unittest* does but with more batteries included!
+* Less boilerplate thanks to magical fixtures.
+* Assertions are more natural and do not require custom invocation.
+* `assert result == "cats"`
+
+== pytest
+*pytest* will treat any function whose name starts with *test_* a test.
+Same goes for test modules.
+
+We can use plain old Python *assert* to test.
+
+== Unit Test Structure
+. Define your inputs and any preconditions
+. Invoke the thing.
+. Verify that it did what you expected.
+
+TL;DR a test is an easy way to quantify what it means for your thing to "work".
+
+[source, python]
+----
+def reverse(items):
+  return items[::-1]
+
+def test_reverse_works_with_string():
+  assert reverse('abc') == 'cba'
+
+def test_reverse_works_with_list():
+  assert reverse([1, 2, 3]) == [3, 2, 1]
+----
+
+== PEP8
+* It's a coding standard
+* Prescribes things like:
+** < 80 character lines
+** 2 new lines between functions in a module
+** 1 new line between methods in a class
+** Visual indentation rules
+** ..and more!
+* PEP8 isn't the only standard out there! (see Google's Python Style Guide)
+* Main thing is to be consistent with the codebase
+* Our tests will fail if py.test finds any PEP8 violations
+
+== Test Automation
+* You should run your tests regularly!
+* Tests that don't run are not trusted
+
+== Other Testable Aspects
+* Sometimes it's also worth adding other checks to your testing pipeline.
+* _Static Analysis_ Done entirely offline - without running your code
+* *Cyclomatic Complexity*
+** A measure of how complex function is
+** Checks that functions "*aren't too complex*"
+** `$ pip install pytest-mccabe`
+* *PEP8*
+** Checks for PEP8 compliance
+** `$ pip install pytest-pep8`
+* *Pyflakes*
+** Checks for syntax errors
+** `$ pip install pytest-flakes`
+* You can have these run before your tests in order to fail fast!
+
+== Trusting sources of input
+* What if we didn't trust the input?
+
+== Generating test cases
+* < 0
+* 0
+* Fraction of a year
+* Most ages
+* > 1000
+* Wrong data type
+* NaN
+
+== pytest - Testing for exceptions
+* pytest.raises
+
+[source, python]
+----
+import pytest
+
+with pytest.raises(TypeError):
+  '2' + 2
+----
+
+== pytest - fixtures
+Fixtures are a way to define reusable components that are required by your tests.
+*Pytest* will automagically hook up your fixtures to your tests (or other fixtures!) that require them.
+
+[source, python]
+----
+import pytest
+
+@pytest.fixture
+def cool_stuff():
+  return CoolStuff()
+
+def test_the_things(cool_stuff):
+  assert cool_stuff.is_cool == True
+----
+
+By default, fixtures are recreated for every test that requires them.
+
+It is possible to control the lifetime of a fixture (e.g. create it once for all the tests), but that is out of scope for today!
+
+== Unit testing and state of the outside world
+* What if you want to test functionality that:
+** Uses the current time/sleeps
+** Depends on an external service (e.g. an HTTP server or DB)
+** Uses random
+* Super easy in Python
+
+== Mocking
+* Create "mock" objects that mimic the external objects/functions
+* You can control their behaviour completely!
+** Return whatever time you want
+** Pretend to sleep
+** Return fake DB or HTTP results
+** Return deterministic results instead of random
+* Verify arguments used
+* Verify that everything is plugged together correctly
+** Test the true behaviour later with system tests
+* *mock* module included in the Python 3 standard library
+
+[source, python]
+----
+import mock
+
+obj = mock.MagickMock()
+
+value = obj[5]
+
+value = obj.foo()
+
+obj.foo.call_count
+----
+
+== Patching
+* Replace methods/classes/modules with mock objects
+* Clean up automatically at the end of a test
+
+== Patching with pytest
+* pytest-mock
+** `pip install pytest-mock`
+** Wrapper around the mock library the works well with pytest
+
+[source, python]
+----
+import time
+
+def time_message():
+  return f"Time is ${time.time()}"
+
+def test_time_message(mocker):
+  mocked_time = mocker.patch.object(time, 'time', autospec=True)
+  mocked_time.return_value = 7
+  assert time_message() == "Time is 7"
+----
+
+== Mock and Patch - autospec
+* Make sure that the expected interface is being
+** Raises if methods or attributes are used that don't exist
+* Always use autospec!
+[source, python]
+----
+mocked_time = mocker.patch.object(time, 'time', autospec=True)
+----
+
+== Parameterization - condensing tests
+* `cat_years_to_hooman_years`
+* What if we want to test for more bad input?
+** So many more tests to write!
+[source, python]
+----
+@pytest.mark.parametrize("age", [
+  "five",
+  [3, 4],
+  {2: 3},
+  (),
+  1000.1,
+  -4
+])
+def test__cat_years_to_hooman_years__bad_input__raises(age):
+  with pytest.raises(safecatmath.InvalidAge):
+    safecatmath.cat_years_to_hooman_years(age)
+----
+
+== Parametrization of fixtures
+* Fixtures can be parametrized too!
+* *pytest* will automatically run every permutation of tests and fixtures
+[source, python]
+----
+@pytest.fixture(params=[
+  "sqlite:////tmp/foobardb",
+  "mysql://foo@bar/database"
+])
+def db(request):
+  return DatabaseConnector(request.param)
+
+def test_select_works(db):
+  assert db.select('foo').from_('bar')
+----
+
+== Unit testability and well factored code
+* Working with legacy code = hard to unit test
+** Usually not well factored
+* Refactoring for unit testability = higher quality code
+
+== Well factored code
+* Isolate glue code (avoid complecting)
+* Highly cohesive
+* Loosey coupled
+* Does one thing
+
+Rich Hickey - https://www.infoq.com/presentations/Simple-Made-Easy[Simple made easy]
